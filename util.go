@@ -5,15 +5,15 @@ import (
 )
 
 func randomString() string {
-	return randSeq(20)
+	return randStringBytes(20)
 }
 
-var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
-func randSeq(n int) string {
-	b := make([]rune, n)
+func randStringBytes(n int) string {
+	b := make([]byte, n)
 	for i := range b {
-		b[i] = letters[rand.Intn(len(letters))]
+		b[i] = letterBytes[rand.Intn(len(letterBytes))]
 	}
 	return string(b)
 }

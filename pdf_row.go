@@ -1,21 +1,29 @@
 package gipdf
 
 type Row struct {
-	Columns     []Widget   `json:"columns"`
-	Padding     Padding    `json:"padding"`
-	Spacing     float64    `json:"spacing"`
-	IsPageBreak bool       `json:"is_page_break"`
-	AspectRatio float64    `json:"aspect_ratio"`
-	parent      *Column    `json:"-"`
-	document    *Document  `json:"-"`
-	builder     func(*Row) `json:"-"`
+	Columns     []Widget     `json:"columns"`
+	Padding     Padding      `json:"padding"`
+	Spacing     float64      `json:"spacing"`
+	IsPageBreak bool         `json:"is_page_break"`
+	AspectRatio float64      `json:"aspect_ratio"`
+	builder     func(*Row)   `json:"-"`
+	configs     []ConfigFunc `json:"-"`
 }
 
-func (r *Row) GetAspectRatio() float64 {
+func (r *Row) getAspectRatio() float64 {
 	return r.AspectRatio
 }
 
-func (r *Row) Render(pdf *Document, x, y, width, height float64) {
+func (r *Row) render(pdf *Document, x, y, width, height float64) {
+	if r.IsPageBreak {
+		pdf.AddPage()
+		return
+	}
+
+	configRunner(pdf, x, y, width, height, r.renderI, r.configs...)
+}
+
+func (r *Row) renderI(pdf *Document, x, y, width, height float64) {
 	if r.IsPageBreak {
 		pdf.AddPage()
 		return
@@ -25,11 +33,26 @@ func (r *Row) Render(pdf *Document, x, y, width, height float64) {
 	r.builder(r)
 
 	var columnAspectCount float64
+	var reservedWidth float64
+	var maxFixedHeight float64
 	for _, column := range r.Columns {
-		columnAspectCount += column.GetAspectRatio()
+		if a, ok := isAspectRatio(column); ok {
+			columnAspectCount += a.getAspectRatio()
+		}
+
+		if a, ok := isFixedWidth(column); ok {
+			reservedWidth += a.getWidth()
+		}
+
+		if a, ok := isFixedHeight(column); ok {
+			maxFixedHeight = max(maxFixedHeight, a.getHeight())
+		}
 	}
 
-	width = width - r.Padding.Left - r.Padding.Right + r.Spacing
+	// No negative height
+	maxFixedHeight = max(maxFixedHeight, 0) + y
+
+	width = width - r.Padding.Left - r.Padding.Right - (r.Spacing * float64(len(r.Columns)-1)) - reservedWidth
 	columnUnitWidth := width / columnAspectCount
 	xValue := x + r.Padding.Left
 	yMax := y
@@ -38,50 +61,68 @@ func (r *Row) Render(pdf *Document, x, y, width, height float64) {
 		pdf.SetY(y + r.Padding.Top)
 		pdf.SetX(xValue)
 		pdf.SetFont(pdf.defaultFont.Name, pdf.defaultFont.Style, pdf.defaultFont.Size)
-		column.Render(pdf, pdf.GetX(), pdf.GetY(), columnUnitWidth*column.GetAspectRatio()-r.Spacing, height)
+		var width float64
+		if a, ok := isAspectRatio(column); ok {
+			width = max(width, columnUnitWidth*a.getAspectRatio())
+		}
+
+		if a, ok := isFixedWidth(column); ok {
+			width = max(width, a.getWidth())
+		}
+
+		if a, ok := isFixedHeight(column); ok {
+			overrideHeight := a.getHeight()
+			if overrideHeight > 0 {
+				height = overrideHeight
+			}
+		}
+
+		column.render(pdf, pdf.GetX(), pdf.GetY(), width, height)
 		if pdf.Fpdf.Err() {
 			return
 		}
 
-		xValue += columnUnitWidth * column.GetAspectRatio()
+		xValue += r.Spacing
+		if a, ok := isAspectRatio(column); ok && a.getAspectRatio() > 0 {
+			xValue += columnUnitWidth * a.getAspectRatio()
+		}
+
+		if a, ok := isFixedWidth(column); ok && a.getWidth() > 0 {
+			xValue += a.getWidth()
+		}
+
 		if pdf.GetY() > yMax || pdf.PageCount() > count {
 			yMax = pdf.GetY()
 			count = pdf.PageCount()
 		}
 	}
-	pdf.SetY(yMax)
+	pdf.SetY(max(yMax, maxFixedHeight))
 	pdf.Ln(r.Padding.Bottom)
 }
 
-func (r *Row) Column(padding Padding, spacing, height float64, aspectRatio float64, builder func(*Column)) *Row {
+func (r *Row) Column(padding Padding, spacing, height float64, aspectRatio float64, builder func(*Column), configs ...ConfigFunc) *Row {
 	column := &Column{
 		Rows:        nil,
 		Padding:     padding,
 		Spacing:     spacing,
 		AspectRatio: aspectRatio,
 		Height:      height,
-		parent:      r,
-		document:    r.document,
+		configs:     configs,
 	}
 	r.Columns = append(r.Columns, column)
 	builder(column)
 	return r
 }
 
-func (r *Row) Parent() *Column {
-	return r.parent
-}
-
-func (d *Document) Row(padding Padding, spacing float64, builder func(*Row)) *Document {
+func (d *Document) Row(padding Padding, spacing float64, builder func(*Row), configs ...ConfigFunc) *Document {
 	row := &Row{
 		Columns:     nil,
 		Padding:     padding,
 		Spacing:     spacing,
 		IsPageBreak: false,
 		AspectRatio: 0,
-		parent:      nil,
-		document:    d,
 		builder:     builder,
+		configs:     configs,
 	}
 	d.Rows = append(d.Rows, row)
 	return d
@@ -94,8 +135,6 @@ func (d *Document) PageBreak() *Document {
 		Spacing:     0,
 		IsPageBreak: true,
 		AspectRatio: 0,
-		parent:      nil,
-		document:    d,
 	}
 	d.Rows = append(d.Rows, row)
 	return d

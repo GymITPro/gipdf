@@ -6,41 +6,39 @@ type dataField struct {
 	AspectRatio float64      `json:"aspect"`
 	TitleHeight float64      `json:"title_height"`
 	FieldHeight float64      `json:"field_height"`
-	Configs     []configFunc `json:"-"`
+	configs     []ConfigFunc `json:"-"`
 }
 
-func (r *Row) DataField(title, content string, aspectRatio, titleHeight, fieldHeight float64, configs ...configFunc) *Row {
+func (r *Row) DataField(title, content string, aspectRatio, titleHeight, fieldHeight float64, configs ...ConfigFunc) *Row {
 	r.Columns = append(r.Columns, dataField{
 		Title:       title,
 		Content:     content,
 		AspectRatio: aspectRatio,
 		TitleHeight: titleHeight,
 		FieldHeight: fieldHeight,
-		Configs:     configs,
+		configs:     configs,
 	})
 	return r
 }
 
-func (r *Column) DataField(title, content string, aspectRatio, titleHeight, fieldHeight float64, configs ...configFunc) *Column {
+func (r *Column) DataField(title, content string, aspectRatio, titleHeight, fieldHeight float64, configs ...ConfigFunc) *Column {
 	r.Rows = append(r.Rows, dataField{
 		Title:       title,
 		Content:     content,
 		AspectRatio: aspectRatio,
 		TitleHeight: titleHeight,
 		FieldHeight: fieldHeight,
-		Configs:     configs,
+		configs:     configs,
 	})
 	return r
 }
 
-func (c dataField) Render(pdf *Document, x, y, width, height float64) {
-	pdf.SetFont("Helvetica", "L", 8)
-	for _, config := range c.Configs {
-		config(pdf)
-	}
+func (c dataField) render(pdf *Document, x, y, width, height float64) {
+	configRunner(pdf, x, y, width, height, c.renderI, c.configs...)
+}
 
+func (c dataField) renderI(pdf *Document, x, y, width, height float64) {
 	pdf.CellFormat(width, c.TitleHeight, c.Title, "", 1, "", false, 0, "")
-	pdf.SetFont("Helvetica", "L", 10)
 
 	text := pdf.SplitText(c.Content, width)
 	for _, lineText := range text {
@@ -49,6 +47,6 @@ func (c dataField) Render(pdf *Document, x, y, width, height float64) {
 	}
 }
 
-func (c dataField) GetAspectRatio() float64 {
+func (c dataField) getAspectRatio() float64 {
 	return c.AspectRatio
 }

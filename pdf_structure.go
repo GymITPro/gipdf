@@ -62,6 +62,41 @@ func PaddingB(i float64) Padding {
 }
 
 type Widget interface {
-	Render(pdf *Document, x, y, width, height float64)
-	GetAspectRatio() float64
+	render(pdf *Document, x, y, width, height float64)
+}
+
+type aspectRatio interface {
+	getAspectRatio() float64
+}
+
+func isAspectRatio(w interface{}) (aspectRatio, bool) {
+	a, ok := w.(aspectRatio)
+	if !ok || a.getAspectRatio() <= 0 {
+		return nil, false
+	}
+	return a, ok
+}
+
+type fixedWidth interface {
+	getWidth() float64
+}
+
+func isFixedWidth(w interface{}) (fixedWidth, bool) {
+	a, ok := w.(fixedWidth)
+	if !ok || a.getWidth() <= 0 {
+		return nil, false
+	}
+	return a, ok
+}
+
+type fixedHeight interface {
+	getHeight() float64
+}
+
+func isFixedHeight(w interface{}) (fixedHeight, bool) {
+	a, ok := w.(fixedHeight)
+	if !ok || a.getHeight() <= 0 {
+		return nil, false
+	}
+	return a, ok
 }

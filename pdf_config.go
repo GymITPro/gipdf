@@ -2,6 +2,7 @@ package gipdf
 
 type Config struct {
 	Padding Padding       `json:"padding"`
+	Spacing float64       `json:"spacing"`
 	Fonts   []*ConfigFont `json:"fonts"`
 }
 
@@ -18,7 +19,7 @@ type Font struct {
 	Size  float64 `json:"size"`
 }
 
-type configFunc func(*Document)
+type ConfigFunc func(pdf *Document, x, y, width, height float64, next func())
 
 type Color struct {
 	Red   int `json:"red"`

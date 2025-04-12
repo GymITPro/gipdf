@@ -14,6 +14,7 @@ type Document struct {
 	FirstPageHeader []*Row  `json:"first_page_header"`
 	Header          []*Row  `json:"header"`
 	Footer          []*Row  `json:"footer"`
+	Spacing         float64 `json:"spacing"`
 	width           float64
 	defaultFont     Font
 	*gofpdf.Fpdf
@@ -54,6 +55,7 @@ func NewDocument(config Config) *Document {
 	pdf.SetAutoPageBreak(true, config.Padding.Bottom)
 	return &Document{
 		Padding:         config.Padding,
+		Spacing:         config.Spacing,
 		Rows:            nil,
 		FirstPageHeader: nil,
 		Header:          nil,
@@ -65,11 +67,15 @@ func NewDocument(config Config) *Document {
 }
 
 func GetHeight(row *Row) float64 {
+	if a, ok := isFixedHeight(row); ok {
+		return a.getHeight()
+	}
+
 	document := NewDocument(Config{
 		Padding: PaddingAll(0),
 	})
 	document.Ln(0)
-	row.Render(document, 0, 0, document.width, 0)
+	row.render(document, 0, 0, document.width, 0)
 	return document.GetY()
 }
 
@@ -90,9 +96,14 @@ func (d *Document) Render() ([]byte, error) {
 			d.AddPage()
 		}
 
-		row.Render(d, d.GetX(), d.GetY(), d.width, 0)
+		row.render(d, d.GetX(), d.GetY(), d.width, height)
 		if d.Fpdf.Err() {
 			return nil, d.Fpdf.Error()
+		}
+		if d.GetY()+d.Spacing > pageHeight-d.Padding.Bottom {
+			d.AddPage()
+		} else {
+			d.Ln(d.Spacing)
 		}
 	}
 
@@ -113,7 +124,7 @@ func (d *Document) header() {
 			var maxY float64 = 0
 			for _, row := range d.FirstPageHeader {
 				d.Ln(0)
-				row.Render(d, d.GetX(), d.GetY(), d.width, 0)
+				row.render(d, d.GetX(), d.GetY(), d.width, 0)
 				if d.GetY() > maxY {
 					maxY = d.GetY()
 				}
@@ -130,7 +141,7 @@ func (d *Document) header() {
 		var maxY float64 = 0
 		for _, row := range d.Header {
 			d.Ln(0)
-			row.Render(d, d.GetX(), d.GetY(), d.width, 0)
+			row.render(d, d.GetX(), d.GetY(), d.width, 0)
 			if d.GetY() > maxY {
 				maxY = d.GetY()
 			}
@@ -148,8 +159,6 @@ func (d *Document) AddHeader(padding Padding, spacing float64, builder func(*Row
 		Spacing:     spacing,
 		IsPageBreak: false,
 		AspectRatio: 0,
-		parent:      nil,
-		document:    d,
 		builder:     builder,
 	}
 	d.Header = append(d.Header, header)
@@ -164,8 +173,6 @@ func (d *Document) AddFirstPageHeader(padding Padding, spacing float64, builder 
 		Spacing:     spacing,
 		IsPageBreak: false,
 		AspectRatio: 0,
-		parent:      nil,
-		document:    d,
 		builder:     builder,
 	}
 	d.FirstPageHeader = append(d.FirstPageHeader, header)
@@ -180,8 +187,6 @@ func (d *Document) AddFooter(padding Padding, spacing float64, builder func(*Row
 		Spacing:     spacing,
 		IsPageBreak: false,
 		AspectRatio: 0,
-		parent:      nil,
-		document:    d,
 		builder:     builder,
 	}
 	d.Footer = append(d.Footer, footer)
@@ -193,7 +198,7 @@ func (d *Document) footer() {
 		d.SetY(-15)
 		for _, row := range d.Footer {
 			d.Ln(0)
-			row.Render(d, d.GetX(), d.GetY(), d.width, 0)
+			row.render(d, d.GetX(), d.GetY(), d.width, 0)
 		}
 	})
 	d.AliasNbPages("")

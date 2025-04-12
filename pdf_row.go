@@ -6,12 +6,22 @@ type Row struct {
 	Spacing     float64      `json:"spacing"`
 	IsPageBreak bool         `json:"is_page_break"`
 	AspectRatio float64      `json:"aspect_ratio"`
+	FixedHeight float64      `json:"fixed_height"`
+	FixedWidth  float64      `json:"fixed_width"`
 	builder     func(*Row)   `json:"-"`
 	configs     []ConfigFunc `json:"-"`
 }
 
 func (r *Row) getAspectRatio() float64 {
 	return r.AspectRatio
+}
+
+func (r *Row) getWidth() float64 {
+	return r.FixedWidth
+}
+
+func (r *Row) getHeight() float64 {
+	return r.FixedHeight
 }
 
 func (r *Row) render(pdf *Document, x, y, width, height float64) {
@@ -100,13 +110,28 @@ func (r *Row) renderI(pdf *Document, x, y, width, height float64) {
 	pdf.Ln(r.Padding.Bottom)
 }
 
-func (r *Row) Column(padding Padding, spacing, height float64, aspectRatio float64, builder func(*Column), configs ...ConfigFunc) *Row {
+func (r *Row) Column(padding Padding, spacing, minHeight float64, aspectRatio float64, builder func(*Column), configs ...ConfigFunc) *Row {
 	column := &Column{
 		Rows:        nil,
 		Padding:     padding,
 		Spacing:     spacing,
 		AspectRatio: aspectRatio,
-		Height:      height,
+		MinHeight:   minHeight,
+		configs:     configs,
+	}
+	r.Columns = append(r.Columns, column)
+	builder(column)
+	return r
+}
+
+func (r *Row) ColumnFixed(padding Padding, spacing, height, width float64, aspectRatio float64, builder func(*Column), configs ...ConfigFunc) *Row {
+	column := &Column{
+		Rows:        nil,
+		Padding:     padding,
+		Spacing:     spacing,
+		AspectRatio: aspectRatio,
+		FixedHeight: height,
+		FixedWidth:  width,
 		configs:     configs,
 	}
 	r.Columns = append(r.Columns, column)
@@ -119,6 +144,22 @@ func (d *Document) Row(padding Padding, spacing float64, builder func(*Row), con
 		Columns:     nil,
 		Padding:     padding,
 		Spacing:     spacing,
+		IsPageBreak: false,
+		AspectRatio: 0,
+		builder:     builder,
+		configs:     configs,
+	}
+	d.Rows = append(d.Rows, row)
+	return d
+}
+
+func (d *Document) RowFixed(padding Padding, spacing float64, height, width float64, builder func(*Row), configs ...ConfigFunc) *Document {
+	row := &Row{
+		Columns:     nil,
+		Padding:     padding,
+		Spacing:     spacing,
+		FixedHeight: height,
+		FixedWidth:  width,
 		IsPageBreak: false,
 		AspectRatio: 0,
 		builder:     builder,

@@ -3,14 +3,24 @@ package gipdf
 type Column struct {
 	Rows        []Widget     `json:"columns"`
 	Padding     Padding      `json:"padding"`
-	Height      float64      `json:"height"`
+	MinHeight   float64      `json:"min_height"`
 	Spacing     float64      `json:"spacing"`
 	AspectRatio float64      `json:"aspect_ratio"`
+	FixedHeight float64      `json:"fixed_height"`
+	FixedWidth  float64      `json:"fixed_width"`
 	configs     []ConfigFunc `json:"-"`
 }
 
 func (r *Column) getAspectRatio() float64 {
 	return r.AspectRatio
+}
+
+func (r *Column) getWidth() float64 {
+	return r.FixedWidth
+}
+
+func (r *Column) getHeight() float64 {
+	return r.FixedHeight
 }
 
 func (r *Column) render(pdf *Document, x, y, width, height float64) {
@@ -38,7 +48,7 @@ func (r *Column) renderI(pdf *Document, x, y, width, height float64) {
 	// No negative height
 	maxFixedWidth = max(maxFixedWidth, 0) + x
 
-	tmpHeight := r.Height
+	tmpHeight := r.MinHeight
 	if height > 0 {
 		tmpHeight = height
 	}
@@ -88,13 +98,14 @@ func (r *Column) renderI(pdf *Document, x, y, width, height float64) {
 	pdf.SetY(yValue - r.Spacing + r.Padding.Bottom)
 }
 
-func (r *Column) Row(padding Padding, spacing float64, aspectRatio float64, builder func(*Row), config ...ConfigFunc) *Column {
+func (r *Column) RowFixed(padding Padding, spacing float64, height, width float64, builder func(*Row), config ...ConfigFunc) *Column {
 	row := &Row{
 		Columns:     nil,
 		Padding:     padding,
 		Spacing:     spacing,
+		FixedHeight: height,
+		FixedWidth:  width,
 		IsPageBreak: false,
-		AspectRatio: aspectRatio,
 		builder:     builder,
 		configs:     config,
 	}

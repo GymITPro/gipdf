@@ -75,7 +75,12 @@ func GetHeight(row *Row) float64 {
 		Padding: PaddingAll(0),
 	})
 	document.Ln(0)
-	row.render(document, 0, 0, document.width, 0)
+	width := document.width
+	if a, ok := isFixedWidth(row); ok {
+		width = a.getWidth()
+	}
+
+	row.render(document, 0, 0, width, 0)
 	return document.GetY()
 }
 
@@ -96,7 +101,16 @@ func (d *Document) Render() ([]byte, error) {
 			d.AddPage()
 		}
 
-		row.render(d, d.GetX(), d.GetY(), d.width, height)
+		if a, ok := isFixedHeight(row); ok {
+			height = a.getHeight()
+		}
+
+		width := d.width
+		if a, ok := isFixedWidth(row); ok {
+			width = a.getWidth()
+		}
+
+		row.render(d, d.GetX(), d.GetY(), width, height)
 		if d.Fpdf.Err() {
 			return nil, d.Fpdf.Error()
 		}

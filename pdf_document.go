@@ -91,6 +91,9 @@ func (d *Document) Render() ([]byte, error) {
 		}
 
 		row.Render(d, d.GetX(), d.GetY(), d.width, 0)
+		if d.Fpdf.Err() {
+			return nil, d.Fpdf.Error()
+		}
 	}
 
 	var buffer bytes.Buffer

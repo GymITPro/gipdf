@@ -39,6 +39,10 @@ func (r *Row) Render(pdf *Document, x, y, width, height float64) {
 		pdf.SetX(xValue)
 		pdf.SetFont(pdf.defaultFont.Name, pdf.defaultFont.Style, pdf.defaultFont.Size)
 		column.Render(pdf, pdf.GetX(), pdf.GetY(), columnUnitWidth*column.GetAspectRatio()-r.Spacing, height)
+		if pdf.Fpdf.Err() {
+			return
+		}
+
 		xValue += columnUnitWidth * column.GetAspectRatio()
 		if pdf.GetY() > yMax || pdf.PageCount() > count {
 			yMax = pdf.GetY()

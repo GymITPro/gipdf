@@ -33,6 +33,10 @@ func (r *Column) Render(pdf *Document, x, y, width, height float64) {
 		pdf.SetX(x + r.Padding.Left)
 		pdf.SetFont(pdf.defaultFont.Name, pdf.defaultFont.Style, pdf.defaultFont.Size)
 		column.Render(pdf, pdf.GetX(), pdf.GetY(), width, columnUnitHeight)
+		if pdf.Fpdf.Err() {
+			return
+		}
+
 		yValue += columnUnitHeight * column.GetAspectRatio()
 		yValue += r.Spacing
 		if pdf.GetX() > xMax {

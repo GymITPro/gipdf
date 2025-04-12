@@ -11,30 +11,22 @@ func Test(t *testing.T) {
 		Spacing: 0,
 	})
 
-	document.Row(PaddingAll(4), 0.75, func(row *Row) {
-		row.TextFieldFixed("Test", 20, 0, 10, AlignmentLeft, UseBackgroundColor(ColorRGB(0, 255, 0)))
-		row.TextField("Test 1", 1, 10, AlignmentLeft, UseBackgroundColor(ColorRGB(255, 0, 0)))
-		row.TextField("Test 2", 1, 10, AlignmentLeft, UseBackgroundColor(ColorRGB(0, 0, 255)))
-	})
-
-	document.Row(PaddingAll(8), 4, func(row *Row) {
-		row.Column(PaddingAll(0), 4, 20, 1, func(column *Column) {
-			column.TextFieldFixed("Test 2",
-				10,
-				10,
-				10,
+	document.Row(PaddingAll(0), 4, func(row *Row) {
+		row.Column(PaddingAll(10), 4, 50, 1, func(column *Column) {
+			column.TextField("Test 2",
+				1,
+				24,
 				AlignmentLeft,
 				UseFont(Font{
 					Name:  "Arial",
 					Style: "B",
 					Size:  24,
 				}),
-				UseBackgroundColor(ColorRGB(0, 0, 0)),
-				UseColor(ColorRGB(255, 255, 255)),
+				UseColor(ColorRGB(0, 0, 0)),
 			)
 			column.TextField("Test 3",
 				1,
-				10,
+				14,
 				AlignmentLeft,
 				UseFont(Font{
 					Name:  "Arial",
@@ -43,6 +35,7 @@ func Test(t *testing.T) {
 				}),
 				UseColor(ColorRGB(158, 170, 193)))
 		})
+		row.TextFieldFixed("Test 1", 20, 20, 10, AlignmentRight)
 	})
 
 	render, err := document.Render()

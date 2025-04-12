@@ -60,13 +60,13 @@ func (r *Column) renderI(pdf *Document, x, y, width, height float64) {
 		pdf.SetY(yValue)
 		pdf.SetX(x + r.Padding.Left)
 		pdf.SetFont(pdf.defaultFont.Name, pdf.defaultFont.Style, pdf.defaultFont.Size)
-		var height float64
+		var nHeight float64
 		if a, ok := isAspectRatio(row); ok {
-			height = max(height, columnUnitHeight*a.getAspectRatio())
+			nHeight = max(height, columnUnitHeight*a.getAspectRatio())
 		}
 
 		if a, ok := isFixedHeight(row); ok {
-			height = max(height, a.getHeight())
+			nHeight = max(nHeight, a.getHeight())
 		}
 
 		if a, ok := isFixedWidth(row); ok {
@@ -76,7 +76,7 @@ func (r *Column) renderI(pdf *Document, x, y, width, height float64) {
 			}
 		}
 
-		row.render(pdf, pdf.GetX(), pdf.GetY(), width, height)
+		row.render(pdf, pdf.GetX(), pdf.GetY(), width, nHeight)
 		if pdf.Fpdf.Err() {
 			return
 		}

@@ -1,4 +1,4 @@
-module gipdf
+module github.com/GymITPro/gipdf
 
 go 1.21
 

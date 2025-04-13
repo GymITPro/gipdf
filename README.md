@@ -1,24 +1,21 @@
 # gipdf
 
-A flexible PDF generation library for Go, built on top of `github.com/phpdave11/gofpdf`. This library provides a component-based API for creating PDF documents with a fluid builder pattern.
+A Go library for creating PDF documents with an element-based composition system. Built on top of [github.com/signintech/gopdf](https://github.com/signintech/gopdf) with an easier API for common document creation tasks.
+
+## Features
+
+- Composable element-based architecture
+- Simple layout management with support for dimensions and aspect ratios
+- Box elements with background colors and rounded corners
+- Image elements with automatic sizing
+- Debug mode to visualize element boundaries
+- Easy extension for custom elements
 
 ## Installation
 
 ```bash
-go get github.com/GymITPro/gipdf
+go get github.com/yourusername/gipdf
 ```
-
-## Features
-
-- Component-based document building
-- Headers and footers
-- Text fields with custom formatting
-- Data fields with labels
-- Image embedding
-- Signature fields
-- Custom fonts
-- Automatic page breaks
-- Layout management with rows and columns
 
 ## Basic Usage
 
@@ -26,152 +23,136 @@ go get github.com/GymITPro/gipdf
 package main
 
 import (
-	"io/ioutil"
-	"log"
-	"os"
-
-	"github.com/GymITPro/gipdf"
+    "github.com/yourusername/gipdf"
 )
 
 func main() {
-	// Create a new document with configuration
-	doc := gipdf.NewDocument(gipdf.Config{
-		Padding: gipdf.PaddingLTRB(10, 10, 10, 10),
-		Fonts: []*gipdf.ConfigFont{
-			{
-				Name:  "Helvetica",
-				Style: "",
-				Data:  nil, // Built-in font
-			},
-		},
-	})
+    // Create a new document
+    doc := gipdf.New(gipdf.Config{
+        Width:  595.28,
+        Height: 841.89,
+        Debug:  false, // Set to true to visualize element boundaries
+    })
 
-	// Add a header
-	doc.AddHeader(gipdf.PaddingAll(5), 2, func(r *gipdf.Row) {
-		r.TextField("Document Header", 1, 10, gipdf.AlignmentCenter, 
-			gipdf.UseFontSize(14))
-	})
+    // Add a page
+    doc.AddPage()
 
-	// Add content
-	doc.Row(gipdf.PaddingAll(5), 2, func(r *gipdf.Row) {
-		r.TextField("Hello World", 1, 10, gipdf.AlignmentLeft)
-	})
+    // Create a box with a blue background
+    box := &gipdf.Box{
+        Width:      gipdf.Float(400),
+        Height:     gipdf.Float(200),
+        Background: gipdf.Color{R: 66, G: 133, B: 244},
+        CornerRadius: [4]float64{10, 10, 10, 10}, // Rounded corners
+    }
 
-	// Generate the PDF
-	pdfBytes, err := doc.Render()
-	if err != nil {
-		log.Fatal(err)
-	}
+    // Add the box to the document at position x:50, y:50
+    doc.Add(box, 50, 50)
 
-	// Save to file
-	err = ioutil.WriteFile("output.pdf", pdfBytes, 0644)
-	if err != nil {
-		log.Fatal(err)
-	}
+    // Add an image
+    img := &gipdf.Image{
+        Path:  "path/to/image.jpg",
+        Width: gipdf.Float(200), // Fixed width
+        Ratio: 16.0/9.0,         // Will determine height based on aspect ratio
+    }
+
+    // Add the image inside a box
+    boxWithImage := &gipdf.Box{
+        Width:      gipdf.Float(300),
+        Height:     gipdf.Float(200),
+        Background: gipdf.Color{R: 255, G: 255, B: 255},
+        Children:   []gipdf.Element{img},
+    }
+
+    doc.Add(boxWithImage, 50, 300)
+
+    // Save the document
+    doc.Save("output.pdf")
 }
 ```
 
-## Components
+## Element Types
 
-### Document
+### Box
 
-The main container for your PDF content.
+A container element that can have a background color, rounded corners, and contain child elements.
 
 ```go
-doc := gipdf.NewDocument(gipdf.Config{
-    Padding: gipdf.PaddingAll(10),
+box := &gipdf.Box{
+    Width:        gipdf.Float(300),
+    Height:       gipdf.Float(200),
+    Background:   gipdf.Color{R: 240, G: 240, B: 240},
+    CornerRadius: [4]float64{5, 5, 5, 5}, // TL, TR, BR, BL
+    Children:     []gipdf.Element{/* child elements */},
+}
+```
+
+### Image
+
+An element for rendering images with control over dimensions and aspect ratio.
+
+```go
+image := &gipdf.Image{
+    Path:   "path/to/image.jpg",
+    Ratio:  1.5,               // Aspect ratio (width/height)
+    Width:  gipdf.Float(200),  // Fixed width (optional)
+    Height: gipdf.Float(150),  // Fixed height (optional)
+}
+```
+
+## Advanced Usage
+
+### Debug Mode
+
+Enable debug mode to see element boundaries:
+
+```go
+doc := gipdf.New(gipdf.Config{
+    Width:  595.28,
+    Height: 841.89,
+    Debug:  true,
 })
 ```
 
-### Rows and Columns
+### Creating Custom Elements
 
-Create layouts using rows (horizontal) and columns (vertical).
+Implement the Element interface to create custom elements:
 
 ```go
-doc.Row(gipdf.PaddingAll(5), 2, func(r *gipdf.Row) {
-    r.Column(gipdf.PaddingAll(2), 1, 0, 1, func(c *gipdf.Column) {
-        // Column content
-    })
-})
+type Element interface {
+    Render(ctx *RenderContext, x, y, width, height float64) error
+    AspectRatio() float64
+    FixedWidth() *float64
+    FixedHeight() *float64
+}
 ```
 
-### Widgets
-
-Add content to your PDF with various widgets:
-
-#### TextField
+Example custom element:
 
 ```go
-row.TextField("This is text", 1, 10, gipdf.AlignmentLeft, 
-    gipdf.UseFontSize(12),
-    gipdf.UseColor(gipdf.ColorRGB(0, 0, 0)))
-```
+type Circle struct {
+    Diameter *float64
+    Color    Color
+}
 
-#### DataField
+func (c *Circle) AspectRatio() float64  { return 1.0 }
+func (c *Circle) FixedWidth() *float64  { return c.Diameter }
+func (c *Circle) FixedHeight() *float64 { return c.Diameter }
 
-```go
-row.DataField("Label", "Value", 1, 8, 10)
-```
-
-#### Image
-
-```go
-imageData, _ := ioutil.ReadFile("logo.png")
-row.Image(imageData, "png", 1)
-```
-
-#### SignatureField
-
-```go
-signatureData, _ := ioutil.ReadFile("signature.png")
-row.SignatureField(signatureData, "png", "2022-01-01", "John Doe", 1, 10)
-```
-
-#### EmptyField
-
-```go
-row.EmptyField(1)
-```
-
-### Headers and Footers
-
-```go
-// Add a standard header
-doc.AddHeader(gipdf.PaddingAll(5), 2, func(r *gipdf.Row) {
-    r.TextField("Document Header", 1, 10, gipdf.AlignmentCenter)
-})
-
-// Add a first page header (different from other pages)
-doc.AddFirstPageHeader(gipdf.PaddingAll(5), 2, func(r *gipdf.Row) {
-    r.TextField("First Page Header", 1, 10, gipdf.AlignmentCenter)
-})
-
-// Add a footer
-doc.AddFooter(gipdf.PaddingAll(5), 2, func(r *gipdf.Row) {
-    r.TextField("Page " + gipdf.CurrentPage() + " of " + gipdf.TotalPages(), 
-        1, 10, gipdf.AlignmentCenter)
-})
-```
-
-### Styling
-
-Apply styling to text using configuration functions:
-
-```go
-row.TextField("Styled Text", 1, 10, gipdf.AlignmentLeft,
-    gipdf.UseFont(gipdf.Font{Name: "Helvetica", Style: "B", Size: 14}),
-    gipdf.UseColor(gipdf.ColorRGB(255, 0, 0)),
-    gipdf.UseFillColor(gipdf.ColorRGB(240, 240, 240)))
-```
-
-## Page Breaks
-
-Add manual page breaks:
-
-```go
-doc.PageBreak()
+func (c *Circle) Render(ctx *RenderContext, x, y, width, height float64) error {
+    // Implementation to draw a circle
+    // ...
+    return nil
+}
 ```
 
 ## License
 
 MIT
+
+## Dependencies
+
+- [github.com/signintech/gopdf](https://github.com/signintech/gopdf) - Base PDF generation library
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.

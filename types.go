@@ -1,6 +1,10 @@
 package gipdf
 
-import "github.com/signintech/gopdf"
+import (
+	"fmt"
+
+	"github.com/signintech/gopdf"
+)
 
 type Element interface {
 	Render(ctx *RenderContext, x, y, width, height float64) error
@@ -44,5 +48,22 @@ type Color struct {
 }
 
 func NewColor(r, g, b uint8) Color {
+	return Color{R: r, G: g, B: b}
+}
+
+func HexColor(hex string) Color {
+	if len(hex) != 7 {
+		panic("hex color must be in the format #RRGGBB")
+	}
+
+	r := uint8(0)
+	g := uint8(0)
+	b := uint8(0)
+
+	_, err := fmt.Sscanf(hex, "#%02X%02X%02X", &r, &g, &b)
+	if err != nil {
+		panic(err)
+	}
+
 	return Color{R: r, G: g, B: b}
 }

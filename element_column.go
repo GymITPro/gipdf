@@ -32,7 +32,6 @@ func (c *Column) Render(ctx *RenderContext, x, y, width, height float64) error {
 	}
 
 	dynamicHeight := height - totalFixedHeight
-
 	for _, el := range c.Elements {
 		h := 0.0
 		if fh := el.FixedHeight(); fh != nil {
@@ -44,20 +43,32 @@ func (c *Column) Render(ctx *RenderContext, x, y, width, height float64) error {
 		ctx.EnsureSpace(h)
 
 		w := width
+		offsetX := x
+
 		if fw := el.FixedWidth(); fw != nil {
 			w = *fw
+			offsetX = x
+
+			// Apply horizontal alignment if wrapped in AlignedElement
+			if ae, ok := el.(*AlignedElement); ok {
+				switch ae.HAlign {
+				case "center":
+					offsetX = x + (width-w)/2
+				case "end":
+					offsetX = x + (width - w)
+				}
+				el = ae.Element
+			}
 		}
 
-		if err := el.Render(ctx, x, ctx.CursorY, w, h); err != nil {
+		if err := el.Render(ctx, offsetX, ctx.CursorY, w, h); err != nil {
 			return err
 		}
-
 		ctx.MoveY(h)
 	}
 
 	if ctx.Debug {
 		drawDebugRect(ctx.PDF, x, y, width, dynamicHeight)
 	}
-
 	return nil
 }

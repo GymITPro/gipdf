@@ -30,13 +30,8 @@ func (r *Row) Render(ctx *RenderContext, x, y, width, height float64) error {
 	totalFixedWidth := 0.0
 	rowHeight := 0.0
 
+	// Measure max height of the row
 	for _, el := range r.Elements {
-		if w := el.FixedWidth(); w != nil {
-			totalFixedWidth += *w
-		} else {
-			totalAspect += el.AspectRatio()
-		}
-
 		if h := el.FixedHeight(); h != nil && *h > rowHeight {
 			rowHeight = *h
 		}
@@ -52,8 +47,15 @@ func (r *Row) Render(ctx *RenderContext, x, y, width, height float64) error {
 	ctx.EnsureSpace(rowHeight)
 
 	dynamicWidth := width - totalFixedWidth
-	currX := x
+	for _, el := range r.Elements {
+		if w := el.FixedWidth(); w != nil {
+			totalFixedWidth += *w
+		} else {
+			totalAspect += el.AspectRatio()
+		}
+	}
 
+	currX := x
 	for _, el := range r.Elements {
 		w := 0.0
 		if fw := el.FixedWidth(); fw != nil {
@@ -63,11 +65,25 @@ func (r *Row) Render(ctx *RenderContext, x, y, width, height float64) error {
 		}
 
 		h := rowHeight
+		offsetY := ctx.CursorY
+
 		if fh := el.FixedHeight(); fh != nil {
 			h = *fh
+			offsetY = ctx.CursorY
+
+			// Apply vertical alignment if wrapped in AlignedElement
+			if ae, ok := el.(*AlignedElement); ok {
+				switch ae.VAlign {
+				case "center":
+					offsetY = ctx.CursorY + (rowHeight-h)/2
+				case "end":
+					offsetY = ctx.CursorY + (rowHeight - h)
+				}
+				el = ae.Element
+			}
 		}
 
-		if err := el.Render(ctx, currX, ctx.CursorY, w, h); err != nil {
+		if err := el.Render(ctx, currX, offsetY, w, h); err != nil {
 			return err
 		}
 		currX += w
@@ -76,5 +92,6 @@ func (r *Row) Render(ctx *RenderContext, x, y, width, height float64) error {
 	if ctx.Debug {
 		drawDebugRect(ctx.PDF, x, y, width, rowHeight)
 	}
+
 	return nil
 }
